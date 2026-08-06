@@ -331,6 +331,18 @@ A drop-in GitHub Actions workflow lives at
 on every PR of the host repo, with pr-review-agent vendored as a subfolder or
 fetched by a checkout step.
 
+**Web dashboard:** start it from inside `pr-review-agent/web/server/` — it
+walks up to the host repo the same way the CLI does, so `docs/pr-reviews/`
+listings on the dashboard match what `reviewCurrent` writes. No env vars
+required; `PR_AGENT_CWD` still overrides.
+
+**Chat agent (`@pr-review-agent` MCP tools in Copilot Chat):** copy
+[`docs/host-repo-mcp.template.json`](docs/host-repo-mcp.template.json)
+to `<host-repo>/.vscode/mcp.json`, reload VS Code, and switch the Chat view
+into Agent mode. This is a Copilot Chat integration — separate from the
+Activity Bar panel shipped by the `vscode-extension/` package (install its
+VSIX for the panel).
+
 ## Usage
 
 ### VS Code extension — one-click tool shortcuts

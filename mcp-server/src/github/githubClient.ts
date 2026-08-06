@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { Octokit } from "@octokit/rest";
@@ -575,11 +576,25 @@ export function findHostRepoRoot(cwd: string): string | null {
 }
 
 function getAgentRoot(): string | null {
-  // __dirname at runtime: <agent>/mcp-server/dist/github (compiled)
-  // __dirname under vitest/tsx: <agent>/mcp-server/src/github (source)
-  // Either way, three levels up is the pr-review-agent root.
+  // Anchor on a file that only exists at pr-review-agent's root layout:
+  // `mcp-server/package.json`. Walking upward from __dirname finds it whether
+  // this module was compiled to `mcp-server/dist/github/`, run from source at
+  // `mcp-server/src/github/`, or reached via the web server's own dist tree
+  // (which mirrors `web/server/dist/mcp-server/src/github/`). Anchoring on a
+  // real file is more robust than fixed `..` arithmetic that breaks whenever
+  // an output layout adds or removes a directory level.
   try {
-    return path.resolve(__dirname, "..", "..", "..");
+    let dir = __dirname;
+    for (;;) {
+      if (existsSync(path.join(dir, "mcp-server", "package.json"))) {
+        return dir;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) {
+        return null;
+      }
+      dir = parent;
+    }
   } catch {
     return null;
   }

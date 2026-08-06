@@ -1,0 +1,11 @@
+{
+  "$comment": "Drop-in template. Copy to <host-repo>/.vscode/mcp.json when pr-review-agent is cloned as a subfolder of your host repo. GitHub Copilot Chat picks this up and exposes the pr-review-agent MCP tools (#runPrReview, #getPrDiff, ...) in Agent mode. Requires the MCP server to be built first: cd pr-review-agent/mcp-server && npm install && npm run build",
+  "servers": {
+    "pr-review-agent": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/index.js"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}
