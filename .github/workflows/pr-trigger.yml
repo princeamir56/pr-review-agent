@@ -1,0 +1,100 @@
+name: PR Review Agent
+
+# GitHub only discovers workflows under `.github/workflows/` (plural). The legacy
+# `.github/workflow/Pr-trigger.yml` is kept in sync for reference but is NOT run.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Run multi-agent PR review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --- External scanners run FIRST, before `npm ci` creates node_modules, and
+      # write SARIF into ./sarif. The Security agent ingests these files (via
+      # PR_AGENT_SARIF_DIR) and folds their findings into its own section, so the
+      # PR gets ONE unified security report. Each scanner is best-effort:
+      # `continue-on-error` means a scanner failing never blocks the review.
+      - name: Prepare SARIF directory
+        run: mkdir -p sarif
+
+      - name: Semgrep (SAST)
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep \
+            semgrep scan --config=p/default --config=p/security-audit --config=p/secrets \
+            --sarif --output=sarif/semgrep.sarif
+
+      - name: Gitleaks (secrets)
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source=/repo --report-format sarif \
+            --report-path /repo/sarif/gitleaks.sarif --exit-code 0
+
+      - name: Trivy (deps / IaC)
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/repo" aquasec/trivy:latest \
+            fs /repo --scanners vuln,secret,misconfig \
+            --format sarif --output /repo/sarif/trivy.sarif
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mcp-server
+        run: npm ci
+
+      # The gate: no review is produced by an agent whose own tests fail. Unit
+      # tests, the golden report snapshot, and the security-rule corpus all run
+      # here; none of them need a token, Docker, or the network.
+      - name: Lint
+        working-directory: mcp-server
+        run: npm run lint
+
+      - name: Test
+        working-directory: mcp-server
+        run: npm test
+
+      - name: Build MCP server + CLI
+        working-directory: mcp-server
+        run: npm run build
+
+      - name: Run review pipeline on this PR
+        env:
+          # GITHUB_TOKEN is provided automatically; it carries pull-requests: write.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: enables any LLM-enhanced pass. The deterministic pipeline runs without it.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_AGENT_CWD: ${{ github.workspace }}
+          # Tells the Security agent where the scanner SARIF files live.
+          PR_AGENT_SARIF_DIR: ${{ github.workspace }}/sarif
+        run: node mcp-server/dist/cli.js reviewCurrent ${{ github.event.pull_request.number }}
+
+      - name: Upload review document artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-review-${{ github.event.pull_request.number }}
+          path: docs/pr-reviews/PR-${{ github.event.pull_request.number }}-*.md
+          if-no-files-found: warn

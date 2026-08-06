@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "secrets": {
+    "GITHUB_TOKEN": {
+      "iv": "ugRhX/VSJURewDXu",
+      "tag": "MlRG0/9kl+CzZRuLJD/lqA==",
+      "ciphertext": "sfwdwiq7pw1nxTvub6uG4Ee4sh4/wIUuzUcwFQkF/DgFD9Rxr9WUuA=="
+    }
+  },
+  "plain": {
+    "GITHUB_OWNER": "princeamir56",
+    "GITHUB_REPO": "princeamir56",
+    "OLLAMA_MODEL": "codellama",
+    "OLLAMA_URL": "http://localhost:11434"
+  }
+}

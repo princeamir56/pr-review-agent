@@ -1,0 +1,78 @@
+name: PR Review Agent (host repo)
+
+# Template workflow for a *host* repository that vendors pr-review-agent as a
+# subdirectory (`pr-review-agent/`) — either a plain clone, a git submodule, or
+# added by a checkout step below. Drop this file into your host repo at
+# `.github/workflows/pr-review.yml` (rename freely) and the agent will target
+# the host repo's own PRs with no env vars set — the CLI walks upward from its
+# own location to find the enclosing host and its git remote.
+#
+# `GITHUB_OWNER` / `GITHUB_REPO` / `PR_AGENT_CWD` still override auto-detection
+# the same as in the standalone workflow.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Run multi-agent PR review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout host repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Option A: pr-review-agent is committed as a subfolder (or submodule) of
+      # the host repo. Nothing extra to do — the checkout above brought it in.
+      #
+      # Option B: fetch pr-review-agent fresh on each run. Uncomment this step
+      # (and delete the committed copy) if you do not want it vendored.
+      # - name: Fetch pr-review-agent
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: your-org/pr-review-agent
+      #     path: pr-review-agent
+      #     fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: pr-review-agent/mcp-server/package-lock.json
+
+      - name: Install pr-review-agent dependencies
+        working-directory: pr-review-agent/mcp-server
+        run: npm ci
+
+      - name: Build pr-review-agent MCP server + CLI
+        working-directory: pr-review-agent/mcp-server
+        run: npm run build
+
+      - name: Run review pipeline on this PR
+        # No PR_AGENT_CWD or GITHUB_OWNER/GITHUB_REPO needed: the CLI walks up
+        # from its own location, finds the host repo checkout, and targets its
+        # `origin` remote. Set the env vars only if you need to override.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node pr-review-agent/mcp-server/dist/cli.js reviewCurrent ${{ github.event.pull_request.number }}
+
+      - name: Upload review document artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-review-${{ github.event.pull_request.number }}
+          path: docs/pr-reviews/PR-${{ github.event.pull_request.number }}-*.md
+          if-no-files-found: warn

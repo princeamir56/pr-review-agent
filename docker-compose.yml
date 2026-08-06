@@ -1,0 +1,29 @@
+services:
+  dashboard:
+    build: .
+    image: pr-review-agent:local
+    ports:
+      # Bound to loopback on purpose: the dashboard has no auth of its own.
+      # Put a reverse proxy with SSO in front before exposing it.
+      - "127.0.0.1:4000:4000"
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN in your .env}
+      WEB_SECRET_KEY: ${WEB_SECRET_KEY:?set a 32+ character WEB_SECRET_KEY in your .env}
+      GITHUB_OWNER: ${GITHUB_OWNER:-}
+      GITHUB_REPO: ${GITHUB_REPO:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Optional LLM triage pass — off unless you turn it on.
+      PR_AGENT_LLM: ${PR_AGENT_LLM:-0}
+      # Docker-in-Docker is not wired up here, so the external scanners are off
+      # by default; the regex engine still runs. In CI the workflow runs them.
+      PR_AGENT_AUTO_SCAN: ${PR_AGENT_AUTO_SCAN:-0}
+    volumes:
+      # Generated reports and the run store survive a container rebuild.
+      - reports:/workspace/docs/pr-reviews
+      # Persisted settings, including the encrypted tokens.
+      - settings:/app/web/server
+    restart: unless-stopped
+
+volumes:
+  reports:
+  settings:

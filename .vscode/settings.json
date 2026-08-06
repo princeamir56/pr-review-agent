@@ -1,0 +1,27 @@
+{
+  "chat.agent.enabled": true,
+  "chat.agentFiles.enabled": true,
+  "chat.agentFiles.locations": [".github/agents"],
+  "mcp.enabled": true,
+  "mcp.servers": {
+    "pr-review-agent": {
+      "enabled": true
+    }
+  },
+  "github.copilot.chat.agent.ollama.url": "http://localhost:11434",
+  "github.copilot.chat.agent.ollama.model": "qwen3:4b",
+
+  // PR-Review-Agent commands. Each maps to a VS Code task in .vscode/tasks.json
+  // and is runnable from the Command Palette via "Tasks: Run Task" → <label>.
+  // The tasks invoke mcp-server/dist/cli.js, which drives the same orchestrator
+  // and agents exposed through the MCP server.
+  "pr-agent.commands": {
+    "pr-agent.reviewAll": "Detect and review all open PRs",
+    "pr-agent.reviewCurrent": "Review the PR for the current branch",
+    "pr-agent.summaryOnly": "Run only the Summary agent on selected PR",
+    "pr-agent.securityOnly": "Run only the Security agent on selected PR",
+    "pr-agent.docsOnly": "Run only the Documentation agent on selected PR",
+    "pr-agent.openLastReport": "Open the last generated PR review doc",
+    "pr-agent.postComment": "Post the last generated review as a GitHub comment"
+  }
+}

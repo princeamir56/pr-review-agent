@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   Design tokens — one accent hue, semantic risk colors, real light + dark modes.
+   All component colors reference these via Tailwind (bg-bg-1, text-fg, ...).
+   ============================================================================ */
+@layer base {
+  :root,
+  :root.light {
+    color-scheme: light;
+    --bg-0: 248 249 252;
+    --bg-1: 255 255 255;
+    --bg-2: 244 245 249;
+    --bg-3: 234 236 243;
+    --line: 224 227 235;
+    --line-strong: 205 210 222;
+    --fg: 18 22 35;
+    --fg-muted: 82 90 110;
+    --fg-subtle: 130 138 158;
+    --accent: 88 101 242;
+    --accent-hover: 71 84 227;
+    --accent-soft: 232 234 253;
+
+    --sev-clean: 22 163 116;
+    --sev-low: 14 116 194;
+    --sev-medium: 202 138 4;
+    --sev-high: 220 105 30;
+    --sev-critical: 209 45 62;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+    --bg-0: 8 9 14;
+    --bg-1: 14 16 24;
+    --bg-2: 20 23 34;
+    --bg-3: 28 32 46;
+    --line: 40 45 62;
+    --line-strong: 62 70 92;
+    --fg: 232 235 244;
+    --fg-muted: 165 172 190;
+    --fg-subtle: 118 126 146;
+    --accent: 130 145 255;
+    --accent-hover: 155 168 255;
+    --accent-soft: 32 38 74;
+
+    --sev-clean: 52 211 153;
+    --sev-low: 96 165 250;
+    --sev-medium: 251 191 36;
+    --sev-high: 251 146 60;
+    --sev-critical: 244 114 128;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg-0 text-fg font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  }
+  ::selection {
+    background: rgb(var(--accent) / 0.35);
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent) / 0.6);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================================
+   Reusable component classes
+   ============================================================================ */
+@layer components {
+  .card {
+    @apply bg-bg-1 border border-line rounded-xl;
+  }
+  .card-quiet {
+    @apply bg-bg-1/60 border border-line/70 rounded-xl;
+  }
+  .glass {
+    @apply bg-bg-1/70 backdrop-blur-xl border border-line;
+  }
+  .btn {
+    @apply inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium
+           border border-line bg-bg-2 text-fg
+           hover:bg-bg-3 hover:border-line-strong
+           active:translate-y-[1px]
+           transition-[background-color,border-color,transform,box-shadow] duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0;
+  }
+  .btn-primary {
+    @apply bg-accent border-accent text-white
+           hover:bg-accent-hover hover:border-accent-hover
+           shadow-[0_1px_0_0_rgb(var(--accent)/0.6),0_8px_24px_-12px_rgb(var(--accent)/0.6)];
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent hover:bg-bg-2;
+  }
+  .btn-icon {
+    @apply w-9 h-9 grid place-items-center rounded-lg text-fg-muted
+           hover:bg-bg-2 hover:text-fg transition-colors;
+  }
+  .input {
+    @apply w-full bg-bg-0 border border-line rounded-lg px-3 py-2 text-sm
+           text-fg placeholder:text-fg-subtle
+           focus:outline-none focus:border-accent/70 focus:ring-2 focus:ring-accent/25
+           transition-colors;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium
+           border border-line bg-bg-2 text-fg-muted;
+  }
+  .chip-mono {
+    @apply chip font-mono tracking-tight;
+  }
+  .kbd {
+    @apply inline-flex items-center px-1.5 h-5 rounded border border-line
+           bg-bg-2 text-[10px] font-mono text-fg-muted;
+  }
+  .telemetry {
+    @apply font-mono uppercase tracking-telemetry text-[10px];
+  }
+  .skeleton {
+    @apply rounded-md;
+    background: linear-gradient(
+      90deg,
+      rgb(var(--bg-2)) 0%,
+      rgb(var(--bg-3)) 45%,
+      rgb(var(--bg-2)) 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Ambient gradient used behind the dashboard hero only */
+  .hero-glow {
+    position: relative;
+    isolation: isolate;
+  }
+  .hero-glow::before {
+    content: "";
+    position: absolute;
+    inset: -40% -10% auto -10%;
+    height: 320px;
+    z-index: -1;
+    background:
+      radial-gradient(60% 60% at 20% 40%, rgb(var(--accent) / 0.18), transparent 70%),
+      radial-gradient(50% 50% at 80% 20%, rgb(var(--sev-medium) / 0.10), transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .hero-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image:
+      linear-gradient(rgb(var(--line) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--line) / 0.35) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(60% 60% at 30% 40%, black, transparent 75%);
+    pointer-events: none;
+  }
+
+  /* Markdown rendering */
+  .markdown { @apply text-fg leading-relaxed; }
+  .markdown h1 { @apply text-2xl font-semibold mt-6 mb-3 tracking-tightest; }
+  .markdown h2 { @apply text-xl font-semibold mt-8 mb-3 pb-2 border-b border-line tracking-tightest; }
+  .markdown h3 { @apply text-lg font-semibold mt-6 mb-2; }
+  .markdown p  { @apply my-3 text-fg-muted; }
+  .markdown ul { @apply list-disc pl-6 my-3 space-y-1 text-fg-muted; }
+  .markdown ol { @apply list-decimal pl-6 my-3 space-y-1 text-fg-muted; }
+  .markdown li::marker { color: rgb(var(--fg-subtle)); }
+  .markdown a  { @apply text-accent hover:underline underline-offset-4; }
+  .markdown code {
+    @apply px-1.5 py-0.5 rounded bg-bg-2 text-fg text-[0.85em] font-mono border border-line;
+  }
+  .markdown pre {
+    @apply bg-bg-2 border border-line rounded-lg p-4 my-4 overflow-x-auto text-sm font-mono;
+  }
+  .markdown pre code { @apply bg-transparent border-0 p-0; }
+  .markdown table { @apply my-4 border-collapse text-sm w-full; }
+  .markdown th, .markdown td { @apply border border-line px-3 py-2 text-left; }
+  .markdown th { @apply bg-bg-2 font-medium; }
+  .markdown blockquote { @apply border-l-2 border-accent/50 pl-4 my-3 text-fg-muted italic; }
+  .markdown hr { @apply my-6 border-line; }
+  .markdown strong { @apply text-fg font-semibold; }
+}
+
+/* Highlight.js theme swap based on class */
+:root.light pre code.hljs { background: transparent; }
+:root.dark pre code.hljs { background: transparent; }

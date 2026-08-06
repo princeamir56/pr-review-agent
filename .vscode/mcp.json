@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "pr-review-agent": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/mcp-server/dist/index.js"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

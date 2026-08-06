@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/*.vsix
+.git
+.github
+.vscode
+docs/pr-reviews/*.md
+docs/pr-reviews/.runs.jsonl
+sarif
+vscode-extension
+.env
+.env.*
+!.env.example
+web/server/.web-settings.json

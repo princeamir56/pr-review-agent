@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "noUncheckedIndexedAccess": true
+  },
+  "include": ["src/**/*.ts", "../../mcp-server/src/**/*.ts"],
+  "exclude": [
+    "../../mcp-server/src/index.ts",
+    "../../mcp-server/src/cli.ts",
+    "../../mcp-server/src/tools/registry.ts",
+    "../../mcp-server/node_modules",
+    "node_modules",
+    "dist"
+  ]
+}

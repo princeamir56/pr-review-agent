@@ -1,0 +1,89 @@
+{
+  "name": "pr-review-agent-vscode",
+  "displayName": "PR Review Agent",
+  "description": "Activity Bar companion for the pr-review-agent MCP server: one-click shortcuts that run the MCP tools in chat.",
+  "version": "0.3.0",
+  "publisher": "local",
+  "private": true,
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:prReviewAgent.dashboard"
+  ],
+  "main": "./dist/extension.js",
+  "files": [
+    "dist",
+    "resources",
+    "package.json"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "prReviewAgent",
+          "title": "PR Review",
+          "icon": "resources/pr-review.svg"
+        }
+      ]
+    },
+    "views": {
+      "prReviewAgent": [
+        {
+          "id": "prReviewAgent.dashboard",
+          "type": "webview",
+          "name": "Agent"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "prReviewAgent.openChat",
+        "title": "PR Review Agent: Open Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "prReviewAgent.openMcpConfig",
+        "title": "PR Review Agent: Open MCP Config",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "prReviewAgent.openAgentPrompt",
+        "title": "PR Review Agent: Open Agent Prompt",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "prReviewAgent.buildServer",
+        "title": "PR Review Agent: Build MCP Server",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "prReviewAgent.runTool",
+        "title": "PR Review Agent: Run MCP Tool in Chat"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "prReviewAgent.openMcpConfig",
+          "when": "view == prReviewAgent.dashboard",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.130",
+    "@types/vscode": "^1.100.0",
+    "@vscode/vsce": "^3.6.1",
+    "typescript": "^6.0.3"
+  }
+}
