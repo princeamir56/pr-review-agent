@@ -343,6 +343,21 @@ into Agent mode. This is a Copilot Chat integration — separate from the
 Activity Bar panel shipped by the `vscode-extension/` package (install its
 VSIX for the panel).
 
+**Nested-clone templates:** the repo's own `.vscode/mcp.json` and
+`.vscode/tasks.json` assume pr-review-agent *is* the workspace root, so they
+don't apply when it's a subfolder. Two drop-in templates cover that case —
+copy both into your host repo's `.vscode/`:
+
+| Template | Copy to | Gives you |
+|---|---|---|
+| [`docs/host-repo-mcp.template.json`](docs/host-repo-mcp.template.json) | `<host-repo>/.vscode/mcp.json` | MCP tools in Copilot Chat Agent mode |
+| [`docs/host-repo-tasks.template.json`](docs/host-repo-tasks.template.json) | `<host-repo>/.vscode/tasks.json` | The `pr-agent.*` tasks in Command Palette → "Tasks: Run Task" |
+
+Both point at `${workspaceFolder}/pr-review-agent/mcp-server/dist/...`; if you
+cloned the agent under a different folder name, substitute that one path. In
+both, `cwd`/`PR_AGENT_CWD` stay `${workspaceFolder}` — the host repo being
+reviewed, where `docs/pr-reviews/` is written.
+
 ## Usage
 
 ### VS Code extension — one-click tool shortcuts

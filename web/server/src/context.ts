@@ -30,7 +30,7 @@ export function repoRoot(): string {
  * `mcp-server/package.json` — that's pr-review-agent's root. Anchoring on a
  * real file survives whichever depth `tsc` emits into `dist/`.
  */
-function findAgentRoot(): string {
+export function findAgentRoot(): string {
   let dir = __dirname;
   for (;;) {
     if (existsSync(path.join(dir, "mcp-server", "package.json"))) {

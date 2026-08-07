@@ -7,7 +7,7 @@
  */
 import { execFile } from "node:child_process";
 import { loadEnv } from "./loadEnv";
-import { GitHubClient, findHostRepoRoot, formatError } from "./github/githubClient";
+import { GitHubClient, resolveDefaultCwd, formatError } from "./github/githubClient";
 
 loadEnv();
 import { ToolContext } from "./tools/types";
@@ -40,8 +40,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const cwd = process.env.PR_AGENT_CWD ?? resolveDefaultCwd();
-  const context: ToolContext = { github: new GitHubClient(), cwd };
+  const context: ToolContext = { github: new GitHubClient(), cwd: resolveDefaultCwd() };
 
   switch (command) {
     case "reviewAll":
@@ -65,18 +64,6 @@ async function main(): Promise<void> {
       console.error(`Unknown command: ${command}`);
       process.exit(1);
   }
-}
-
-/**
- * Default cwd when `PR_AGENT_CWD` is unset. Prefers the enclosing host repo
- * when pr-review-agent is cloned as a subfolder of another git repo, so
- * `docs/pr-reviews/` and git-remote detection both target the host — not the
- * agent's own directory. Falls back to `process.cwd()` in the standalone case.
- */
-function resolveDefaultCwd(): string {
-  const invoked = process.cwd();
-  const host = findHostRepoRoot(invoked);
-  return host ?? invoked;
 }
 
 async function resolvePr(context: ToolContext, prNumber?: number): Promise<{ owner: string; repo: string; prNumber: number }> {

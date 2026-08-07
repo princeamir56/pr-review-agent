@@ -2,7 +2,7 @@
   "name": "pr-review-agent-vscode",
   "displayName": "PR Review Agent",
   "description": "Activity Bar companion for the pr-review-agent MCP server: one-click shortcuts that run the MCP tools in chat.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "local",
   "private": true,
   "engines": {

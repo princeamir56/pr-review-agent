@@ -5,6 +5,11 @@
     "lib": [
       "ES2022"
     ],
+    // `node` supplies TextDecoder, used to read the pr-review-agent marker file.
+    "types": [
+      "node",
+      "vscode"
+    ],
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,

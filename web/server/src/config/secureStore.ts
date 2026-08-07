@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
+import { findAgentRoot } from "../context";
 
 const ALGO = "aes-256-gcm";
 const CONFIG_KEYS = [
@@ -30,8 +31,16 @@ interface StoredFile {
   plain: Partial<Record<ConfigKey, string>>;
 }
 
+/**
+ * This file holds the dashboard's own encrypted local state (not target-repo
+ * data), so it must always land in pr-review-agent's own tree regardless of the
+ * directory the server was launched from. Anchored on `findAgentRoot()` +
+ * `web/server/` — where the file is tracked today — so `npm run dev` from
+ * `web/server/`, `npm --prefix server run start` from `web/`, and a launch from
+ * a nested host repo root all read and write the same settings.
+ */
 function storeFilePath(): string {
-  return path.join(process.cwd(), ".web-settings.json");
+  return path.join(findAgentRoot(), "web", "server", ".web-settings.json");
 }
 
 function deriveKey(): Buffer {

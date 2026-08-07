@@ -4,7 +4,7 @@ loadEnv();
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { GitHubClient, formatError } from "./github/githubClient";
+import { GitHubClient, resolveDefaultCwd, formatError } from "./github/githubClient";
 import { registerTools } from "./tools/registry";
 
 async function main(): Promise<void> {
@@ -16,9 +16,12 @@ async function main(): Promise<void> {
   });
 
   const github = new GitHubClient();
+  // Same target-repo cwd precedence the CLI uses (PR_AGENT_CWD > nested-host
+  // detection > plain cwd), so both agree regardless of how each is launched —
+  // rather than depending on an MCP config that hardcodes `${workspaceFolder}`.
   registerTools(server, {
     github,
-    cwd: process.cwd()
+    cwd: resolveDefaultCwd()
   });
 
   const transport = new StdioServerTransport();

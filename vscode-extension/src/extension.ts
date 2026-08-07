@@ -54,9 +54,13 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("prReviewAgent.dashboard", provider),
     vscode.commands.registerCommand("prReviewAgent.openChat", openChat),
-    vscode.commands.registerCommand("prReviewAgent.openMcpConfig", () => openWorkspaceFile(MCP_CONFIG)),
-    vscode.commands.registerCommand("prReviewAgent.openAgentPrompt", () => openWorkspaceFile(AGENT_PROMPT)),
-    vscode.commands.registerCommand("prReviewAgent.buildServer", buildServer),
+    vscode.commands.registerCommand("prReviewAgent.openMcpConfig", () => openWorkspaceFile(MCP_CONFIG, context)),
+    vscode.commands.registerCommand("prReviewAgent.openAgentPrompt", () => openWorkspaceFile(AGENT_PROMPT, context)),
+    vscode.commands.registerCommand("prReviewAgent.buildServer", () => buildServer(context)),
+    // Opening or closing a folder can change where pr-review-agent lives.
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      cachedAgentRoot = undefined;
+    }),
     vscode.commands.registerCommand("prReviewAgent.runTool", (id: string, pr?: string, post?: boolean) =>
       runTool(id, pr, post)
     )
@@ -208,30 +212,115 @@ async function openChat(): Promise<void> {
   }
 }
 
-async function openWorkspaceFile(relativePath: string): Promise<void> {
-  const folder = vscode.workspace.workspaceFolders?.[0];
+/** Marker that identifies a directory as pr-review-agent's own root. */
+const AGENT_MARKER = ["mcp-server", "package.json"];
+const AGENT_PACKAGE_NAME = "pr-review-agent-mcp-server";
+/** Subfolder name to look for when pr-review-agent is cloned inside a host repo. */
+const AGENT_FOLDER_NAME = "pr-review-agent";
 
-  if (!folder) {
-    void vscode.window.showWarningMessage("Open the pr-review-agent workspace first.");
+let cachedAgentRoot: vscode.Uri | undefined;
+
+/**
+ * True if `uri` is pr-review-agent's own root — i.e. it contains
+ * `mcp-server/package.json` whose `name` identifies this project. Checking the
+ * package name (not just the file's existence) avoids matching an unrelated
+ * project that happens to have an `mcp-server/` folder.
+ */
+async function isAgentRoot(uri: vscode.Uri): Promise<boolean> {
+  try {
+    const marker = vscode.Uri.joinPath(uri, ...AGENT_MARKER);
+    const bytes = await vscode.workspace.fs.readFile(marker);
+    const parsed = JSON.parse(new TextDecoder("utf-8").decode(bytes)) as { name?: unknown };
+    return parsed.name === AGENT_PACKAGE_NAME;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Locates pr-review-agent's own folder, which is NOT necessarily the first open
+ * workspace folder: the repo is commonly cloned as a subfolder of a host repo
+ * (e.g. `pdf-inspector/pr-review-agent/`) with the host opened in VS Code. Tries,
+ * in order: each open workspace folder itself, a `pr-review-agent` subfolder of
+ * each, and finally the extension's own location when running from a dev
+ * checkout (a packaged `.vsix` install dir has no `mcp-server/`, so it fails the
+ * marker check and is correctly skipped).
+ */
+async function findAgentRoot(context?: vscode.ExtensionContext): Promise<vscode.Uri | undefined> {
+  if (cachedAgentRoot && (await isAgentRoot(cachedAgentRoot))) {
+    return cachedAgentRoot;
+  }
+  cachedAgentRoot = undefined;
+
+  const folders = vscode.workspace.workspaceFolders ?? [];
+
+  for (const folder of folders) {
+    if (await isAgentRoot(folder.uri)) {
+      cachedAgentRoot = folder.uri;
+      return cachedAgentRoot;
+    }
+  }
+
+  for (const folder of folders) {
+    const nested = vscode.Uri.joinPath(folder.uri, AGENT_FOLDER_NAME);
+    if (await isAgentRoot(nested)) {
+      cachedAgentRoot = nested;
+      return cachedAgentRoot;
+    }
+  }
+
+  if (context && (await isAgentRoot(context.extensionUri))) {
+    cachedAgentRoot = context.extensionUri;
+    return cachedAgentRoot;
+  }
+  // Dev checkout: the extension lives at `<agent-root>/vscode-extension/`.
+  if (context) {
+    const parent = vscode.Uri.joinPath(context.extensionUri, "..");
+    if (await isAgentRoot(parent)) {
+      cachedAgentRoot = parent;
+      return cachedAgentRoot;
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * `findAgentRoot` plus the user-facing warning, for commands that cannot proceed
+ * without the folder.
+ */
+async function requireAgentRoot(context?: vscode.ExtensionContext): Promise<vscode.Uri | undefined> {
+  const root = await findAgentRoot(context);
+  if (!root) {
+    void vscode.window.showWarningMessage("Could not locate the pr-review-agent folder in this workspace.");
+  }
+  return root;
+}
+
+async function openWorkspaceFile(relativePath: string, context?: vscode.ExtensionContext): Promise<void> {
+  const root = await requireAgentRoot(context);
+  if (!root) {
     return;
   }
 
-  const uri = vscode.Uri.joinPath(folder.uri, relativePath);
-  const document = await vscode.workspace.openTextDocument(uri);
-  await vscode.window.showTextDocument(document);
+  const uri = vscode.Uri.joinPath(root, relativePath);
+  try {
+    const document = await vscode.workspace.openTextDocument(uri);
+    await vscode.window.showTextDocument(document);
+  } catch {
+    void vscode.window.showWarningMessage(`Could not open ${relativePath} under ${root.fsPath}.`);
+  }
 }
 
-async function buildServer(): Promise<void> {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-
-  if (!folder) {
-    void vscode.window.showWarningMessage("Open the pr-review-agent workspace first.");
+async function buildServer(context?: vscode.ExtensionContext): Promise<void> {
+  const root = await requireAgentRoot(context);
+  if (!root) {
     return;
   }
 
   const terminal = vscode.window.createTerminal({
     name: "PR Review MCP Build",
-    cwd: vscode.Uri.joinPath(folder.uri, "mcp-server").fsPath
+    cwd: vscode.Uri.joinPath(root, "mcp-server").fsPath
   });
 
   terminal.show();

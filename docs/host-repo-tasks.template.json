@@ -1,0 +1,81 @@
+{
+  "$comment": "Drop-in template. Copy to <host-repo>/.vscode/tasks.json when pr-review-agent is cloned as a subfolder of your host repo, so Command Palette -> 'Tasks: Run Task' offers the pr-agent.* tasks. The repo's own .vscode/tasks.json assumes pr-review-agent IS the workspace root and does not work in that layout. VS Code tasks cannot discover the subfolder dynamically: if you cloned it under a different name than 'pr-review-agent', replace every '${workspaceFolder}/pr-review-agent' below with your actual path. PR_AGENT_CWD stays ${workspaceFolder} on purpose — that is the HOST repo being reviewed, where docs/pr-reviews/ is written. Requires the MCP server to be built first: cd pr-review-agent/mcp-server && npm install && npm run build",
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}",
+    "env": {
+      "PR_AGENT_CWD": "${workspaceFolder}"
+    }
+  },
+  "presentation": {
+    "reveal": "always",
+    "panel": "shared",
+    "clear": true
+  },
+  "tasks": [
+    {
+      "label": "pr-agent.reviewAll",
+      "detail": "Detect and review all open PRs",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/cli.js", "reviewAll"],
+      "problemMatcher": []
+    },
+    {
+      "label": "pr-agent.reviewCurrent",
+      "detail": "Review the PR for the current branch",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/cli.js", "reviewCurrent"],
+      "problemMatcher": []
+    },
+    {
+      "label": "pr-agent.summaryOnly",
+      "detail": "Run only the Summary agent on a PR (optionally pass a PR number)",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/cli.js", "summaryOnly", "${input:prNumber}"],
+      "problemMatcher": []
+    },
+    {
+      "label": "pr-agent.securityOnly",
+      "detail": "Run only the Security agent on a PR (optionally pass a PR number)",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/cli.js", "securityOnly", "${input:prNumber}"],
+      "problemMatcher": []
+    },
+    {
+      "label": "pr-agent.docsOnly",
+      "detail": "Run only the Documentation agent on a PR (optionally pass a PR number)",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/cli.js", "docsOnly", "${input:prNumber}"],
+      "problemMatcher": []
+    },
+    {
+      "label": "pr-agent.openLastReport",
+      "detail": "Open the last generated PR review doc",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/cli.js", "openLastReport", "${input:prNumber}"],
+      "problemMatcher": []
+    },
+    {
+      "label": "pr-agent.postComment",
+      "detail": "Post the last generated review as a GitHub comment",
+      "type": "shell",
+      "command": "node",
+      "args": ["${workspaceFolder}/pr-review-agent/mcp-server/dist/cli.js", "postComment", "${input:prNumber}"],
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "prNumber",
+      "type": "promptString",
+      "description": "PR number (leave blank to auto-detect from the current branch)",
+      "default": ""
+    }
+  ]
+}

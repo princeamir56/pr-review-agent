@@ -9,7 +9,7 @@
   },
   "plain": {
     "GITHUB_OWNER": "princeamir56",
-    "GITHUB_REPO": "princeamir56",
+    "GITHUB_REPO": "test",
     "OLLAMA_MODEL": "codellama",
     "OLLAMA_URL": "http://localhost:11434"
   }

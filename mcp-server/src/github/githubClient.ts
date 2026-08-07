@@ -575,6 +575,22 @@ export function findHostRepoRoot(cwd: string): string | null {
   return findGitRepoAbove(agentRoot, agentRoot);
 }
 
+/**
+ * The default target-repo working directory — where `docs/pr-reviews/` lives.
+ * `PR_AGENT_CWD` wins; otherwise, when pr-review-agent is cloned inside another
+ * git repo, that host repo's root; otherwise the plain `process.cwd()`. Shared
+ * by the CLI and the MCP server entrypoint so both agree however each is
+ * launched (and the web server's `repoRoot()` follows the same precedence).
+ */
+export function resolveDefaultCwd(): string {
+  const override = process.env.PR_AGENT_CWD?.trim();
+  if (override) {
+    return override;
+  }
+  const invoked = process.cwd();
+  return findHostRepoRoot(invoked) ?? invoked;
+}
+
 function getAgentRoot(): string | null {
   // Anchor on a file that only exists at pr-review-agent's root layout:
   // `mcp-server/package.json`. Walking upward from __dirname finds it whether
