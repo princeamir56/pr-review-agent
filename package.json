@@ -11,6 +11,7 @@
     "setup": "npm run install:all && npm run build",
     "install:all": "npm --prefix mcp-server install && npm --prefix vscode-extension install && npm run install:web",
     "install:web": "cd web && npm install && npm --prefix server install && npm --prefix client install",
+    "setup:host": "node mcp-server/dist/setupHost.js",
     "dev": "cd web && npm run web:dev",
     "dev:mcp": "npm --prefix mcp-server run dev",
     "build": "npm run build:mcp && npm run build:web && npm run build:extension",

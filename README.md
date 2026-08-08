@@ -279,6 +279,7 @@ Run these from the repo root; each delegates to the right package.
 | Script | What it does |
 |---|---|
 | `npm run setup` | Install every package, then build them all |
+| `npm run setup:host` | **Nested clones only** — wire the host repo's VS Code config (chat agents, MCP server, tasks) |
 | `npm run dev` | Start the dashboard (API + client) with hot reload |
 | `npm run build` | Build mcp-server, web, and the extension |
 | `npm test` | Run the mcp-server and web-server suites |
@@ -377,20 +378,45 @@ node pr-review-agent/mcp-server/dist/cli.js reviewCurrent
 No `PR_AGENT_CWD`, `GITHUB_OWNER`, or `GITHUB_REPO` needed — leave them blank
 and the agent resolves the host repo on its own.
 
-**Keep the agent out of your host repo's git status.** The clone shows up as an
-untracked directory. Add it to the host's `.gitignore`, or to
-`.git/info/exclude` if you'd rather not modify a tracked file:
+#### One-time VS Code wiring: `npm run setup:host`
+
+VS Code discovers `.vscode/mcp.json`, `.vscode/tasks.json`, and
+`.github/agents/*.agent.md` **only at the workspace root**. In the nested layout
+the workspace root is your host repo, so pr-review-agent's own copies are
+invisible — the chat agents never appear in the mode dropdown, the `pr-agent.*`
+tasks never show up, and the MCP server isn't offered in *MCP: List Servers*.
+No amount of code in the agent can change that; the files have to exist at the
+host root.
+
+Run this once, from inside the nested clone:
 
 ```bash
-# from the host repo root
-echo "/pr-review-agent/" >> .git/info/exclude
-echo "/docs/pr-reviews/" >> .git/info/exclude   # optional: reports are generated
+cd pr-review-agent
+npm run setup:host
 ```
 
-Git treats the nested clone as a single opaque entry, so a stray `git add -A`
-in the host stages one directory rather than the agent's individual files — your
-`pr-review-agent/.env` will not be committed to the host by accident. Excluding
-it is still worth doing to keep `git status` readable.
+It copies the four chat agents to `<host>/.github/agents/`, writes
+`<host>/.vscode/mcp.json` and `tasks.json` with paths retargeted at the nested
+folder (using its real directory name, so renamed clones work), and adds
+`/pr-review-agent/`, `/docs/pr-reviews/`, and `/sarif/` to the host's
+`.git/info/exclude` so the tool stays out of `git status`.
+
+Then **Developer: Reload Window**.
+
+It is safe to re-run: existing files are reported and left untouched, so it will
+never overwrite an `mcp.json` you already maintain. Pass `-- --force` to replace
+them deliberately:
+
+```bash
+npm run setup:host -- --force
+```
+
+Everything it writes is a plain file you can inspect, edit, or delete — the
+command prints every path it touched. `.git/info/exclude` is local-only and
+never committed, so this leaves no trace in a host repo you don't own.
+
+If pr-review-agent *is* your workspace root, you don't need this at all — the
+command detects that and tells you so.
 
 **How auto-detection works:** the CLI walks upward from its own installed
 location to find the enclosing host repository, uses that repo's `origin`
@@ -1040,9 +1066,13 @@ except the [LLM pass](#optional-llm-review-pass) works with it absent.
 VS Code discovers `mcp.json`, `tasks.json`, and `.github/agents/` **only at the
 workspace root**. When pr-review-agent is a subfolder, its own copies are invisible.
 
+**Fix all three at once with `npm run setup:host`** (see
+[Using pr-review-agent inside another repo](#using-pr-review-agent-inside-another-repo)).
+The manual equivalents:
+
 - **MCP server missing from *MCP: List Servers*** — copy [`docs/host-repo-mcp.template.json`](docs/host-repo-mcp.template.json) to `<host-repo>/.vscode/mcp.json`, or add the server to your user-level config (*MCP: Open User Configuration*) using an **absolute** path to `mcp-server/dist/index.js`.
 - **`pr-agent.*` tasks missing** — copy [`docs/host-repo-tasks.template.json`](docs/host-repo-tasks.template.json) to `<host-repo>/.vscode/tasks.json`.
-- **Custom chat agents missing** — they load from `<workspace-root>/.github/agents/`, and there is no user-level equivalent. Either open a multi-root workspace that includes the pr-review-agent folder, or symlink the directory into the host root. The MCP tools work in plain Agent mode without them.
+- **Custom chat agents missing** — run `npm run setup:host` from the nested clone, then reload the window. They load from `<workspace-root>/.github/agents/` and there is no user-level equivalent, so the files must be copied to the host root. The MCP tools work in plain Agent mode without them.
 - **`Cannot find module .../mcp-server/dist/index.js`** — the server isn't built. Run `npm run build:mcp` from the pr-review-agent folder.
 - **`Variable workspaceFolder can not be resolved`** — `${workspaceFolder}` isn't available in a *user-level* `mcp.json`. Remove the `cwd` line; the server resolves the host repo itself.
 

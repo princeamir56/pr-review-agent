@@ -12,6 +12,7 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "pr-agent": "node dist/cli.js",
+    "setup:host": "node dist/setupHost.js",
     "review:all": "node dist/cli.js reviewAll",
     "review:current": "node dist/cli.js reviewCurrent",
     "typecheck": "tsc -p tsconfig.json --noEmit",
