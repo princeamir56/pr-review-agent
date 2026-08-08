@@ -147,6 +147,44 @@ describe("resolveRepository precedence", () => {
     expect(info).toEqual({ owner: "acme", repo: "host" });
   });
 
+  it("treats empty env vars as unset — `cp .env.example .env` must not break detection", async () => {
+    // Regression: .env.example ships GITHUB_OWNER= / GITHUB_REPO= blank. An
+    // earlier version used `owner ?? detected.owner`, and `??` does not fall
+    // through on "", so every fresh install resolved the repository to "" / ""
+    // and every GitHub call 404'd.
+    process.env.GITHUB_OWNER = "";
+    process.env.GITHUB_REPO = "";
+    await initRepoWithRemote(workspace, "git@github.com:acme/host.git");
+
+    const info = await resolveRepository({}, { github: client, cwd: workspace });
+    expect(info).toEqual({ owner: "acme", repo: "host" });
+  });
+
+  it("treats whitespace-only env vars as unset", async () => {
+    process.env.GITHUB_OWNER = "   ";
+    process.env.GITHUB_REPO = "\t";
+    await initRepoWithRemote(workspace, "git@github.com:acme/host.git");
+
+    const info = await resolveRepository({}, { github: client, cwd: workspace });
+    expect(info).toEqual({ owner: "acme", repo: "host" });
+  });
+
+  it("falls back per-field when only one override is blank", async () => {
+    process.env.GITHUB_OWNER = "env-owner";
+    process.env.GITHUB_REPO = "";
+    await initRepoWithRemote(workspace, "git@github.com:acme/host.git");
+
+    const info = await resolveRepository({}, { github: client, cwd: workspace });
+    expect(info).toEqual({ owner: "env-owner", repo: "host" });
+  });
+
+  it("ignores blank explicit input the same way", async () => {
+    await initRepoWithRemote(workspace, "git@github.com:acme/host.git");
+
+    const info = await resolveRepository({ owner: "  ", repo: "" }, { github: client, cwd: workspace });
+    expect(info).toEqual({ owner: "acme", repo: "host" });
+  });
+
   it("respects the caller's cwd — mirroring how PR_AGENT_CWD is threaded through", async () => {
     // The CLI reads PR_AGENT_CWD once and passes it as context.cwd; the resolver
     // never consults the env var itself. This test pins that contract: whatever

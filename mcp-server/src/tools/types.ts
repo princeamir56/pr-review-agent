@@ -23,10 +23,22 @@ export const pullRequestInputSchema = {
   prNumber: z.number().int().positive().optional().describe("Pull request number. Auto-detected from the current branch when omitted.")
 };
 
+/**
+ * Normalizes an override to `undefined` unless it carries a real value. Blank
+ * and whitespace-only strings must not count as "set": `.env.example` ships
+ * `GITHUB_OWNER=` / `GITHUB_REPO=` empty, so `cp .env.example .env` would
+ * otherwise suppress git-remote auto-detection and resolve the repository to
+ * `""/""` for every new user.
+ */
+function override(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export async function resolveRepository(input: { owner?: string; repo?: string }, context: ToolContext): Promise<{ owner: string; repo: string }> {
   // Precedence: explicit input > GITHUB_OWNER/GITHUB_REPO env vars > git remote.
-  const owner = input.owner ?? process.env.GITHUB_OWNER?.trim();
-  const repo = input.repo ?? process.env.GITHUB_REPO?.trim();
+  const owner = override(input.owner) ?? override(process.env.GITHUB_OWNER);
+  const repo = override(input.repo) ?? override(process.env.GITHUB_REPO);
   if (owner && repo) {
     return { owner, repo };
   }
