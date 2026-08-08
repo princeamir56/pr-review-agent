@@ -363,8 +363,9 @@ will auto-target that host repo's PRs — no env vars required.
 ```bash
 # inside your host repo
 git clone https://github.com/your-org/pr-review-agent
-cd pr-review-agent/mcp-server
-npm install && npm run build
+cd pr-review-agent
+npm run setup                     # installs and builds everything
+cp .env.example .env              # then fill in GITHUB_TOKEN
 ```
 
 Then run the CLI from anywhere in the host repo tree:
@@ -372,6 +373,24 @@ Then run the CLI from anywhere in the host repo tree:
 ```bash
 node pr-review-agent/mcp-server/dist/cli.js reviewCurrent
 ```
+
+No `PR_AGENT_CWD`, `GITHUB_OWNER`, or `GITHUB_REPO` needed — leave them blank
+and the agent resolves the host repo on its own.
+
+**Keep the agent out of your host repo's git status.** The clone shows up as an
+untracked directory. Add it to the host's `.gitignore`, or to
+`.git/info/exclude` if you'd rather not modify a tracked file:
+
+```bash
+# from the host repo root
+echo "/pr-review-agent/" >> .git/info/exclude
+echo "/docs/pr-reviews/" >> .git/info/exclude   # optional: reports are generated
+```
+
+Git treats the nested clone as a single opaque entry, so a stray `git add -A`
+in the host stages one directory rather than the agent's individual files — your
+`pr-review-agent/.env` will not be committed to the host by accident. Excluding
+it is still worth doing to keep `git status` readable.
 
 **How auto-detection works:** the CLI walks upward from its own installed
 location to find the enclosing host repository, uses that repo's `origin`
