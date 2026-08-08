@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { findAgentRoot } from "../context";
 
 const ALGO = "aes-256-gcm";
+const MIN_SECRET_KEY_LENGTH = 16;
 const CONFIG_KEYS = [
   "GITHUB_TOKEN",
   "GITHUB_OWNER",
@@ -43,13 +44,30 @@ function storeFilePath(): string {
   return path.join(findAgentRoot(), "web", "server", ".web-settings.json");
 }
 
+/**
+ * Derives the AES key from `WEB_SECRET_KEY`. There is deliberately no fallback:
+ * an earlier version hashed a constant string when the variable was unset, which
+ * meant secrets were "encrypted" under a key published in this repo — anyone with
+ * a copy of the source could decrypt them. Failing loudly is the only safe
+ * behavior, since the alternative silently produces a file that looks encrypted
+ * but is not.
+ */
 function deriveKey(): Buffer {
   const raw = process.env.WEB_SECRET_KEY;
-  if (!raw || raw.length < 16) {
-    // Fall back to a deterministic dev key so first-run works, but log once.
-    return crypto.createHash("sha256").update("pr-review-agent:dev-key").digest();
+  if (!raw || raw.length < MIN_SECRET_KEY_LENGTH) {
+    throw new Error(
+      `WEB_SECRET_KEY must be set to at least ${MIN_SECRET_KEY_LENGTH} characters before secrets can be stored or read. ` +
+        'Generate one with:  node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"  ' +
+        "then add it to web/server/.env (see .env.example)."
+    );
   }
   return crypto.createHash("sha256").update(raw).digest();
+}
+
+/** True when a usable WEB_SECRET_KEY is configured, without throwing. */
+export function hasSecretKey(): boolean {
+  const raw = process.env.WEB_SECRET_KEY;
+  return typeof raw === "string" && raw.length >= MIN_SECRET_KEY_LENGTH;
 }
 
 function encrypt(plain: string): EncryptedRecord {
@@ -102,8 +120,14 @@ export async function loadConfig(): Promise<Config> {
   return result;
 }
 
+/**
+ * Best-effort decrypt for the read path: a missing/wrong key or a record written
+ * under a different key yields `undefined` rather than throwing, so the dashboard
+ * still loads and shows the secret as unset. `saveConfig` deliberately does not
+ * swallow the error — writing must fail loudly.
+ */
 function tryDecrypt(record: EncryptedRecord | undefined): string | undefined {
-  if (!record) return undefined;
+  if (!record || !hasSecretKey()) return undefined;
   try {
     return decrypt(record);
   } catch {

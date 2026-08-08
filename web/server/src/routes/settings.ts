@@ -1,13 +1,15 @@
 import { Router, Request, Response } from "express";
 import { Octokit } from "@octokit/rest";
-import { CONFIG_KEYS, ConfigKey, loadConfig, saveConfig, toClientSafe } from "../config/secureStore";
+import { CONFIG_KEYS, ConfigKey, hasSecretKey, loadConfig, saveConfig, toClientSafe } from "../config/secureStore";
 import { formatError } from "../../../../mcp-server/src/github/githubClient";
 
 export const settingsRouter = Router();
 
 settingsRouter.get("/", async (_req: Request, res: Response) => {
   const config = await loadConfig();
-  res.json({ ok: true, config: toClientSafe(config), keys: CONFIG_KEYS });
+  // `secretsAvailable: false` tells the UI that secret fields cannot be saved
+  // until WEB_SECRET_KEY is configured, rather than letting the save fail later.
+  res.json({ ok: true, config: toClientSafe(config), keys: CONFIG_KEYS, secretsAvailable: hasSecretKey() });
 });
 
 settingsRouter.put("/", async (req: Request, res: Response) => {
@@ -17,6 +19,19 @@ settingsRouter.put("/", async (req: Request, res: Response) => {
     const val = body[key];
     if (typeof val === "string") update[key] = val;
   }
+  // Saving a secret without a key would throw inside deriveKey; report it as a
+  // client-fixable configuration problem instead of a server fault.
+  const writesSecret = update.GITHUB_TOKEN !== undefined || update.ANTHROPIC_API_KEY !== undefined;
+  if (writesSecret && !hasSecretKey()) {
+    res.status(400).json({
+      ok: false,
+      code: "WEB_SECRET_KEY_MISSING",
+      error:
+        "WEB_SECRET_KEY is not configured, so tokens cannot be encrypted. Add it to web/server/.env and restart the server."
+    });
+    return;
+  }
+
   try {
     const merged = await saveConfig(update);
     res.json({ ok: true, config: toClientSafe(merged) });

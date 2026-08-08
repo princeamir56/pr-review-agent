@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { loadConfig, applyToProcessEnv } from "./config/secureStore";
+import { checkEnv, reportEnv } from "./config/validateEnv";
 import { prsRouter } from "./routes/prs";
 import { reviewRouter } from "./routes/review";
 import { reportsRouter } from "./routes/reports";
@@ -9,8 +10,14 @@ import { metricsRouter } from "./routes/metrics";
 import { attachSseClient } from "./sse";
 
 async function main(): Promise<void> {
-  // Merge persisted settings into process.env before any route touches GitHubClient.
+  // Merge persisted settings into process.env before any route touches
+  // GitHubClient — and before validation, so a token stored via the Settings
+  // page counts as configured.
   applyToProcessEnv(await loadConfig());
+
+  if (!reportEnv(checkEnv())) {
+    process.exit(1);
+  }
 
   const app = express();
   app.use(cors());

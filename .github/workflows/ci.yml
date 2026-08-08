@@ -1,0 +1,97 @@
+name: CI
+
+# Gates lint, typecheck, tests, and builds on every push and PR. The suites are
+# deliberately pure — no GitHub token, no network — so this runs without secrets.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20.x", "22.x"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install mcp-server
+        run: npm --prefix mcp-server ci
+
+      - name: Lint
+        run: npm --prefix mcp-server run lint
+
+      - name: Typecheck
+        run: npm --prefix mcp-server run typecheck
+
+      - name: Test
+        run: npm --prefix mcp-server test
+
+      - name: Build mcp-server
+        run: npm --prefix mcp-server run build
+
+      - name: Install web server
+        working-directory: web/server
+        run: npm install --no-audit --no-fund
+
+      - name: Test web server
+        working-directory: web/server
+        run: npm test
+
+      - name: Build web server
+        working-directory: web/server
+        run: npm run build
+
+      - name: Install web client
+        working-directory: web/client
+        run: npm install --no-audit --no-fund
+
+      - name: Build web client
+        working-directory: web/client
+        run: npm run build
+
+      - name: Install extension
+        working-directory: vscode-extension
+        run: npm install --no-audit --no-fund
+
+      - name: Build extension
+        working-directory: vscode-extension
+        run: npm run build
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail if per-machine settings file is tracked
+        run: |
+          if git ls-files --error-unmatch web/server/.web-settings.json 2>/dev/null; then
+            echo "::error::web/server/.web-settings.json is tracked. It holds an encrypted token and pins the tool to one host repo. Run: git rm --cached web/server/.web-settings.json"
+            exit 1
+          fi
+          echo "OK: .web-settings.json is not tracked."
+
+      - name: Fail if a .env file is tracked
+        run: |
+          tracked=$(git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.' | grep -v '\.env\.example$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::Tracked env file(s): $tracked"
+            exit 1
+          fi
+          echo "OK: no tracked .env files."

@@ -13,3 +13,8 @@ coverage/
 *.tsbuildinfo
 *.vsix
 docs/pr-reviews/*.md
+
+# Per-machine dashboard state written by web/server/src/config/secureStore.ts.
+# Holds an encrypted GITHUB_TOKEN plus the operator's GITHUB_OWNER/GITHUB_REPO,
+# so committing it both leaks a credential and pins the tool to one host repo.
+.web-settings.json

@@ -1,0 +1,29 @@
+{
+  "name": "pr-review-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-agent GitHub pull request reviewer — MCP server, web dashboard, and VS Code extension. Runs against any host repository.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.12.0"
+  },
+  "scripts": {
+    "setup": "npm run install:all && npm run build",
+    "install:all": "npm --prefix mcp-server install && npm --prefix vscode-extension install && npm run install:web",
+    "install:web": "cd web && npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "cd web && npm run web:dev",
+    "dev:mcp": "npm --prefix mcp-server run dev",
+    "build": "npm run build:mcp && npm run build:web && npm run build:extension",
+    "build:mcp": "npm --prefix mcp-server run build",
+    "build:web": "cd web && npm run web:build",
+    "build:extension": "npm --prefix vscode-extension run build",
+    "start": "cd web && npm run web:start",
+    "test": "npm --prefix mcp-server test && npm run test:web",
+    "test:web": "cd web/server && npm test",
+    "lint": "npm --prefix mcp-server run lint",
+    "typecheck": "npm --prefix mcp-server run typecheck && npm run typecheck:web && npm --prefix vscode-extension run build",
+    "typecheck:web": "cd web && npm run web:typecheck",
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "package:extension": "npm --prefix vscode-extension run package"
+  }
+}

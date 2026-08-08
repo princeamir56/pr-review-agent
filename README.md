@@ -37,6 +37,7 @@ to GitHub.
 - [MCP tools](#mcp-tools)
 - [Output format](#output-format)
 - [Agent communication protocol](#agent-communication-protocol)
+- [Security](#security)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
 - [Updates](#updates)
@@ -238,38 +239,92 @@ The `vscode-extension/` panel and the `.github/agents/*.agent.md` prompts are ju
 
 ## Installation
 
+**Requirements:** Node.js **20.12+** (22 recommended — the `.env` loader is
+built-in from 20.12), Git, and a GitHub account with a personal access token.
+VS Code 1.100+ only if you want the extension or chat agents; Docker only for
+the containerised dashboard and the optional external scanners.
+
+### Quick start
+
 ```bash
-cd mcp-server
-npm install
-npm run build
+git clone https://github.com/<your-org>/pr-review-agent
+cd pr-review-agent
+npm run setup        # installs all four packages and builds them
 ```
 
-Create your environment file and fill in real values:
+Then configure the environment:
 
 ```bash
-cp .env.example .env
+cp .env.example .env               # agent + CLI config
+cp web/server/.env.example web/server/.env   # dashboard config (only if you use the web UI)
 ```
+
+Fill in `GITHUB_TOKEN` in `.env`, and — if you use the dashboard — generate a
+`WEB_SECRET_KEY` into `web/server/.env`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Verify everything:
+
+```bash
+npm run check        # lint + typecheck + tests, across every package
+```
+
+### Root scripts
+
+Run these from the repo root; each delegates to the right package.
+
+| Script | What it does |
+|---|---|
+| `npm run setup` | Install every package, then build them all |
+| `npm run dev` | Start the dashboard (API + client) with hot reload |
+| `npm run build` | Build mcp-server, web, and the extension |
+| `npm test` | Run the mcp-server and web-server suites |
+| `npm run lint` | ESLint over mcp-server |
+| `npm run typecheck` | Typecheck every package |
+| `npm run check` | lint + typecheck + test — the full gate |
+| `npm run package:extension` | Produce the `.vsix` |
+
+### Environment variables
+
+Two `.env` files, both optional to create but each required for its own feature
+set. Real environment variables always take precedence over file values.
+
+**`.env` (repo root) — agent, CLI, and MCP server**
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `GITHUB_TOKEN` | ✅ | GitHub PAT with `repo` + pull-requests scope |
+| `GITHUB_TOKEN` | ✅ | GitHub PAT with `repo` + pull-requests scope. Create at <https://github.com/settings/tokens>. |
 | `ANTHROPIC_API_KEY` | for the LLM pass only | Anthropic API key. The deterministic pipeline needs no key. |
 | `PR_AGENT_LLM` | optional | Enable the optional LLM review pass (default `0` — off) |
 | `PR_AGENT_LLM_MODEL` | optional | Model for that pass (default `claude-opus-5`) |
-| `GITHUB_OWNER` / `GITHUB_REPO` | optional | Override git-remote auto-detection |
+| `GITHUB_OWNER` / `GITHUB_REPO` | optional | Override git-remote auto-detection. Leave unset to target whatever host repo the tool is run against. |
 | `MCP_SERVER_PORT` | optional | Default 3000 |
 | `OLLAMA_MODEL` / `OLLAMA_URL` | optional | Local model for VS Code chat agents |
 | `PR_AGENT_CWD` | optional | Repo root the CLI runs against (where `docs/pr-reviews/` is written) |
 | `PR_AGENT_AUTO_SCAN` | optional | Auto-run Semgrep/Gitleaks/Trivy in Docker on each review (default on; `0` disables) |
 | `PR_AGENT_SARIF_DIR` | optional | Directory the Security agent reads scanner SARIF from (default: `<cwd>/sarif`) |
 
+**`web/server/.env` — dashboard only**
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `WEB_SECRET_KEY` | ✅ for the dashboard | 16+ chars (32+ recommended) used to encrypt tokens at rest. **The server refuses to start without it** — there is deliberately no default, since a built-in key would mean secrets are encrypted with a value published in this repo. Back it up: losing it makes stored secrets unreadable. |
+| `WEB_SERVER_PORT` | optional | API port (default `4000`) |
+| `GITHUB_TOKEN` etc. | optional | Initial defaults before anything is saved via the Settings page |
+
+Both files are gitignored. `.env.example` files are committed and contain
+placeholders only.
+
 ### Tests, lint, and the build gate
 
 ```bash
-cd mcp-server
-npm test         # 124 tests: units, golden report snapshot, security-rule corpus
+npm test         # 146 tests: mcp-server (137) + web-server config/security (9)
 npm run lint     # ESLint (flat config) over src/ and test/
-npm run build    # tsc → dist/
+npm run build    # every package
+npm run check    # all three, the full gate
 ```
 
 The suite needs no token, no Docker, and no network — which is why CI can run it
@@ -286,11 +341,15 @@ The image runs the test suite during the build, so a broken agent never reaches 
 container. It binds to loopback on purpose — the dashboard still has no auth of
 its own, so put a reverse proxy in front before exposing it.
 
-The server and CLI **load `.env` automatically** (via Node's built-in env-file loader),
-looking in the current working directory and the repository root — no `dotenv` dependency
-and no manual `export` required. Real environment variables still take precedence over
-`.env`. When the repository cannot be auto-detected from a git remote (e.g. running the CLI
-from a folder that is not a clone of the target repo), set `GITHUB_OWNER` / `GITHUB_REPO`.
+The server and CLI **load `.env` automatically** (via Node's built-in env-file
+loader) — no `dotenv` dependency and no manual `export` required. Both candidate
+locations are resolved relative to **pr-review-agent's own folder**, not the
+directory the process was launched from: `web/server/.env` first, then the repo
+root's `.env`. That distinction matters when the agent is cloned inside a host
+repo — otherwise `process.cwd()` would find the *host's* `.env`. Real environment
+variables still take precedence. When the repository cannot be auto-detected from
+a git remote (e.g. running the CLI from a folder that is not a clone of the target
+repo), set `GITHUB_OWNER` / `GITHUB_REPO`.
 
 > ⚠️ **Never commit `.env`.** `.env.example` is committed and must contain placeholders
 > only. If a real token ever lands in a committed file, revoke it at
@@ -897,11 +956,37 @@ report file → optional comment. Byte-for-byte identical every time.
 | Batch review of many open PRs | CLI: `node dist/cli.js reviewAll` |
 | Zero-cost, offline, no API keys | Anything except the LLM chat path |
 
+## Security
+
+**Never commit `.env` or `web/server/.web-settings.json`.** Both are gitignored,
+and CI fails the build if either becomes tracked (see `.github/workflows/ci.yml`).
+`.web-settings.json` is per-machine dashboard state: it holds an encrypted
+`GITHUB_TOKEN` plus the operator's `GITHUB_OWNER`/`GITHUB_REPO`, so committing it
+leaks a credential *and* pins the tool to one host repo.
+
+**Secrets at rest.** The dashboard encrypts `GITHUB_TOKEN` and
+`ANTHROPIC_API_KEY` with AES-256-GCM under a key derived from `WEB_SECRET_KEY`.
+There is no fallback key: if the variable is unset the server refuses to start.
+An earlier version hashed a constant string instead, which meant "encrypted"
+values could be decrypted by anyone holding a copy of this source. If you ran
+that version, **rotate any token you saved through the dashboard.**
+
+**Least privilege.** The PAT needs `repo` scope to read diffs and post comments —
+nothing more. Prefer a fine-grained token scoped to the single repository you
+review. Rotate on a schedule; revoke at <https://github.com/settings/tokens>.
+
+**Exposure.** The dashboard has no authentication of its own and binds to
+loopback (`127.0.0.1:4000`). Put a reverse proxy with auth in front before
+exposing it beyond localhost.
+
+**Reporting.** If you find a vulnerability, see [SECURITY.md](SECURITY.md) if
+present, or open a private advisory rather than a public issue.
+
 ## Development
 
 ```bash
 cd mcp-server
-npm run test        # 124 tests (vitest) — no token, Docker, or network needed
+npm run test        # 137 tests (vitest) — no token, Docker, or network needed
 npm run test:watch  # the same suite, re-running on change
 npm run lint        # eslint over src/ and test/
 npm run format      # prettier --write
@@ -921,6 +1006,28 @@ structured-output helper. `@anthropic-ai/sdk` is an **optional** dependency: eve
 except the [LLM pass](#optional-llm-review-pass) works with it absent.
 
 ## Troubleshooting
+
+### Setup and configuration
+
+- **`WEB_SECRET_KEY is missing or too short` / dashboard won't start** — expected on a fresh clone. Generate a key (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`) into `web/server/.env` and restart. There is no default key by design; see [Security](#security).
+- **Saved a token in the dashboard and it vanished** — the token is encrypted with `WEB_SECRET_KEY`. If that value changed (or a different `.env` is now being read), existing secrets can't be decrypted and show as unset. Restore the original key or re-enter the token.
+- **`GITHUB_TOKEN is not set` warning at startup** — non-fatal. The dashboard starts; add the token on the Settings page or in `.env`. GitHub calls fail until you do.
+- **Port already in use** — set `WEB_SERVER_PORT` in `web/server/.env`. The Vite dev proxy targets `http://localhost:4000`, so also update `web/client/vite.config.ts` if you change it.
+- **Repository not detected** — the tool resolves the host repo as `PR_AGENT_CWD` → `GITHUB_OWNER`/`GITHUB_REPO` → git-remote auto-detection. Run from inside a clone with an `origin` remote, or set the variables explicitly. A directory with no git remote and no overrides cannot be resolved, and says so.
+- **Wrong repository targeted** — most often a stale `GITHUB_OWNER`/`GITHUB_REPO` in `.env` or saved in the dashboard's Settings page, which override auto-detection. Clear them to fall back to detection.
+
+### Nested clone (pr-review-agent inside a host repo)
+
+VS Code discovers `mcp.json`, `tasks.json`, and `.github/agents/` **only at the
+workspace root**. When pr-review-agent is a subfolder, its own copies are invisible.
+
+- **MCP server missing from *MCP: List Servers*** — copy [`docs/host-repo-mcp.template.json`](docs/host-repo-mcp.template.json) to `<host-repo>/.vscode/mcp.json`, or add the server to your user-level config (*MCP: Open User Configuration*) using an **absolute** path to `mcp-server/dist/index.js`.
+- **`pr-agent.*` tasks missing** — copy [`docs/host-repo-tasks.template.json`](docs/host-repo-tasks.template.json) to `<host-repo>/.vscode/tasks.json`.
+- **Custom chat agents missing** — they load from `<workspace-root>/.github/agents/`, and there is no user-level equivalent. Either open a multi-root workspace that includes the pr-review-agent folder, or symlink the directory into the host root. The MCP tools work in plain Agent mode without them.
+- **`Cannot find module .../mcp-server/dist/index.js`** — the server isn't built. Run `npm run build:mcp` from the pr-review-agent folder.
+- **`Variable workspaceFolder can not be resolved`** — `${workspaceFolder}` isn't available in a *user-level* `mcp.json`. Remove the `cwd` line; the server resolves the host repo itself.
+
+### Reviews and GitHub
 
 - **No open PRs** — `list_open_prs` returns a clear message; the pipeline does not invent a PR.
 - **MCP server won't start** — rebuild (`npm run build`) and confirm `GITHUB_TOKEN` is set in the environment that launched VS Code.
