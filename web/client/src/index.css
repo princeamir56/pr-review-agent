@@ -55,6 +55,13 @@
   html, body, #root {
     height: 100%;
   }
+  /* Vertical scrolling only. Decorative glows and the scaled pipeline canvas can
+     paint past the fold, but nothing may widen the page. `clip` rather than
+     `hidden` so this never turns body into a scroll container (which would break
+     position: sticky in the PR detail and report sidebars). */
+  body {
+    overflow-x: clip;
+  }
   body {
     @apply bg-bg-0 text-fg font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
@@ -147,6 +154,9 @@
   .hero-glow {
     position: relative;
     isolation: isolate;
+    /* The ::before glow bleeds 10% past each edge; clip it so a purely decorative
+       layer can never add horizontal scroll to the page. */
+    overflow-x: clip;
   }
   .hero-glow::before {
     content: "";
@@ -171,6 +181,29 @@
     background-size: 44px 44px;
     mask-image: radial-gradient(60% 60% at 30% 40%, black, transparent 75%);
     pointer-events: none;
+  }
+
+  /* Thin, recessive scrollbar for panes that scroll inside the page (e.g. the
+     PR detail sidebar), so an inner scroll doesn't read as a browser chrome bar. */
+  .sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line-strong)) transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--line-strong));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--fg-subtle));
+    background-clip: content-box;
   }
 
   /* Markdown rendering */

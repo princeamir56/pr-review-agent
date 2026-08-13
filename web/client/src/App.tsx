@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { Home } from "./pages/Home";
 import { Dashboard } from "./pages/Dashboard";
 import { PRDetail } from "./pages/PRDetail";
 import { ReportViewer } from "./pages/ReportViewer";
@@ -13,7 +14,8 @@ export default function App(): JSX.Element {
     <ToastProvider>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<Home />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="pr/:number" element={<PRDetail />} />
           <Route path="reports" element={<ReportViewer />} />
           <Route path="reports/:name" element={<ReportViewer />} />

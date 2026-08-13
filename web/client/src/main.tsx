@@ -6,6 +6,12 @@ import App from "./App";
 import { ThemeProvider } from "./lib/theme";
 import "./index.css";
 
+// Let ScrollToTop own the scroll offset on navigation; the browser's automatic
+// restoration otherwise re-applies the old position after the route renders.
+if ("scrollRestoration" in history) {
+  history.scrollRestoration = "manual";
+}
+
 const qc = new QueryClient({
   defaultOptions: {
     queries: {

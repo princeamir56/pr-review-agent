@@ -38,21 +38,54 @@ export function stringHue(s: string): number {
   return h % 360;
 }
 
-/** Extract a Markdown table of contents from `## Heading` lines. */
-export function extractToc(md: string): Array<{ level: 2 | 3; text: string; slug: string }> {
-  const out: Array<{ level: 2 | 3; text: string; slug: string }> = [];
+export interface TocEntry {
+  level: 2 | 3;
+  /** Heading text with any leading emoji stripped off. */
+  text: string;
+  /** The leading emoji, when the heading starts with one. */
+  icon: string | null;
+  slug: string;
+}
+
+/**
+ * Extract a Markdown table of contents from `## Heading` lines.
+ *
+ * Fenced code blocks are skipped: reports quote changelog snippets that contain
+ * their own `## [Unreleased]` headings, and those are sample content, not
+ * sections. They also never get an id from rehype-slug (they render inside
+ * `<pre>`), so listing them produced links that scrolled nowhere.
+ */
+export function extractToc(md: string): TocEntry[] {
+  const out: TocEntry[] = [];
+  let inFence = false;
+
   for (const raw of md.split("\n")) {
+    if (/^\s*(```|~~~)/.test(raw)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+
     const m2 = /^##\s+(.+?)\s*$/.exec(raw);
     const m3 = /^###\s+(.+?)\s*$/.exec(raw);
     const match = m2 ?? m3;
     if (!match) continue;
+
     const text = match[1]!;
+    // Slug must match rehype-slug, which sees the full text including emoji.
     const slug = text
       .toLowerCase()
       .replace(/[^\w\s-]/g, "")
       .trim()
       .replace(/\s+/g, "-");
-    out.push({ level: m2 ? 2 : 3, text, slug });
+
+    const emoji = /^(\p{Extended_Pictographic}(?:️)?)\s*/u.exec(text);
+    out.push({
+      level: m2 ? 2 : 3,
+      text: emoji ? text.slice(emoji[0].length) : text,
+      icon: emoji ? emoji[1]! : null,
+      slug
+    });
   }
   return out;
 }

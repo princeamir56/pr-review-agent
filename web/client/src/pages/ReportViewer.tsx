@@ -9,7 +9,8 @@ import rehypeSlug from "rehype-slug";
 import { api } from "../lib/api";
 import { EmptyState } from "../components/EmptyState";
 import { SeverityBreakdown } from "../components/SeverityBreakdown";
-import { parseSeverityLine, extractToc, cn } from "../lib/utils";
+import { ReportToc } from "../components/ReportToc";
+import { parseSeverityLine, extractToc } from "../lib/utils";
 import { T } from "../lib/motion";
 
 export function ReportViewer(): JSX.Element {
@@ -62,23 +63,50 @@ function SingleReport({ name }: { name: string }): JSX.Element {
   const toc = useMemo(() => (q.data ? extractToc(q.data.content) : []), [q.data]);
   const breakdown = q.data ? parseSeverityLine(q.data.content) : null;
 
+  // Scroll the heading clear of the sticky header rather than under it.
+  const jumpTo = (slug: string): void => {
+    const el = document.getElementById(slug);
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 84;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top, behavior: reduced ? "auto" : "smooth" });
+    setActiveSlug(slug);
+    history.replaceState(null, "", `#${slug}`);
+  };
+
   useEffect(() => {
     if (!q.data) return;
     const headings = Array.from(document.querySelectorAll<HTMLElement>("main h2[id], main h3[id]"));
     if (!headings.length) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveSlug(entry.target.id);
-            break;
-          }
-        }
-      },
-      { rootMargin: "-72px 0px -60% 0px", threshold: [0, 1] }
-    );
-    headings.forEach((h) => observer.observe(h));
-    return () => observer.disconnect();
+    // Pick the last heading scrolled past, so an entry is always active — including
+    // at the top of the page, before any intersection has fired.
+    const sync = (): void => {
+      let current = headings[0]?.id ?? null;
+      for (const h of headings) {
+        if (h.getBoundingClientRect().top <= 96) current = h.id;
+        else break;
+      }
+      setActiveSlug(current);
+    };
+    sync();
+
+    // Coalesce to one measurement per frame — scroll fires far more often.
+    let frame = 0;
+    const onScroll = (): void => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        sync();
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, [q.data]);
 
   if (q.isLoading) return <div className="card p-8"><div className="skeleton h-6 w-1/2 mb-3" /><div className="skeleton h-4 w-1/3" /></div>;
@@ -103,28 +131,7 @@ function SingleReport({ name }: { name: string }): JSX.Element {
       </motion.div>
       <aside className="lg:sticky lg:top-[76px] lg:self-start space-y-4">
         {breakdown ? <SeverityBreakdown breakdown={breakdown} /> : null}
-        {toc.length ? (
-          <nav className="card p-4">
-            <div className="telemetry text-fg-subtle mb-3">ON.THIS.PAGE</div>
-            <ul className="space-y-1 text-sm">
-              {toc.map((h) => (
-                <li key={h.slug} className={cn(h.level === 3 && "pl-3")}>
-                  <a
-                    href={`#${h.slug}`}
-                    className={cn(
-                      "block truncate py-1 border-l-2 pl-2 -ml-2 transition-colors",
-                      activeSlug === h.slug
-                        ? "border-accent text-fg"
-                        : "border-transparent text-fg-muted hover:text-fg"
-                    )}
-                  >
-                    {h.text}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ) : null}
+        {toc.length ? <ReportToc items={toc} activeSlug={activeSlug} onJump={jumpTo} /> : null}
       </aside>
     </div>
   );

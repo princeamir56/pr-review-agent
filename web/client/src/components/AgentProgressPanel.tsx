@@ -10,19 +10,39 @@ const LABELS: Record<AgentName, string> = {
   documentation: "DOCS"
 };
 
-const STATE_LABEL: Record<AgentUiState, string> = {
+export const STATE_LABEL: Record<AgentUiState, string> = {
   pending: "IDLE",
   running: "RUNNING",
   complete: "COMPLETE",
   error: "ERROR"
 };
 
-const STATE_TONE: Record<AgentUiState, string> = {
+export const STATE_TONE: Record<AgentUiState, string> = {
   pending: "border-line bg-bg-2 text-fg-subtle",
   running: "border-accent/50 bg-accent/10 text-accent",
   complete: "border-sev-clean/50 bg-sev-clean/10 text-sev-clean",
   error: "border-sev-critical/50 bg-sev-critical/10 text-sev-critical"
 };
+
+/** Text-only tone for the status label inside a card that carries its own border. */
+export const STATE_TEXT: Record<AgentUiState, string> = {
+  pending: "text-fg-subtle",
+  running: "text-accent",
+  complete: "text-sev-clean",
+  error: "text-sev-critical"
+};
+
+/** The running-state sweep, reused by the selectable agent cards. */
+export function RunningSweep(): JSX.Element {
+  return (
+    <motion.span
+      className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-accent to-transparent"
+      initial={{ x: "-100%" }}
+      animate={{ x: "100%" }}
+      transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
+    />
+  );
+}
 
 export function AgentProgressPanel({
   agents,
@@ -62,14 +82,7 @@ function AgentRow({ name, state }: { name: AgentName; state: AgentUiState }): JS
       animate={state === "error" ? { x: [0, -3, 3, -2, 2, 0] } : { x: 0 }}
       transition={state === "error" ? { duration: 0.35 } : T.micro}
     >
-      {state === "running" ? (
-        <motion.span
-          className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-accent to-transparent"
-          initial={{ x: "-100%" }}
-          animate={{ x: "100%" }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
-        />
-      ) : null}
+      {state === "running" ? <RunningSweep /> : null}
 
       <StateIcon state={state} />
 
@@ -93,7 +106,7 @@ function AgentRow({ name, state }: { name: AgentName; state: AgentUiState }): JS
   );
 }
 
-function StateIcon({ state }: { state: AgentUiState }): JSX.Element {
+export function StateIcon({ state }: { state: AgentUiState }): JSX.Element {
   if (state === "pending") {
     return <span className="w-4 h-4 rounded-full border border-current opacity-40" />;
   }

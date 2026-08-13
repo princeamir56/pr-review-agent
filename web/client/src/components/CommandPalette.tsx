@@ -41,7 +41,8 @@ export function CommandPalette({
 
   const items = useMemo<Cmd[]>(() => {
     const cmds: Cmd[] = [
-      { id: "nav:dash", title: "Go to Dashboard", group: "Navigate", keywords: "home prs pull requests", run: () => navigate("/") },
+      { id: "nav:home", title: "Go to Home", group: "Navigate", keywords: "landing overview pipeline how it works", run: () => navigate("/") },
+      { id: "nav:dash", title: "Go to Dashboard", group: "Navigate", keywords: "prs pull requests list", run: () => navigate("/dashboard") },
       { id: "nav:reports", title: "Go to Reports", group: "Navigate", keywords: "docs pr-reviews", run: () => navigate("/reports") },
       { id: "nav:settings", title: "Open Settings", group: "Navigate", keywords: "config token github anthropic ollama", run: () => navigate("/settings") },
       { id: "theme:toggle", title: `Switch to ${resolved === "dark" ? "light" : "dark"} theme`, group: "Theme", keywords: "dark light mode", run: () => setTheme(resolved === "dark" ? "light" : "dark") },

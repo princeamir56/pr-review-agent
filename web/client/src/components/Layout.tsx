@@ -7,9 +7,11 @@ import { T } from "../lib/motion";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { CommandPalette } from "./CommandPalette";
+import { ScrollToTop } from "./ScrollToTop";
 
 const nav = [
-  { to: "/", label: "Dashboard", end: true },
+  { to: "/", label: "Home", end: true },
+  { to: "/dashboard", label: "Dashboard", end: true },
   { to: "/reports", label: "Reports", end: false },
   { to: "/settings", label: "Settings", end: false }
 ];
@@ -32,6 +34,7 @@ export function Layout(): JSX.Element {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <ScrollToTop />
       <header className="glass border-b sticky top-0 z-30">
         <div className="max-w-[1400px] mx-auto px-6 h-14 flex items-center gap-4">
           <div className="flex items-center gap-3 min-w-0">
