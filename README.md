@@ -552,6 +552,7 @@ Open the **PR Review** icon in the Activity Bar. The panel has:
 | Workspace | **MCP Config** | — (opens `.vscode/mcp.json`) | — | — |
 | Workspace | **Agent Prompt** | — (opens `orchestrator.agent.md`) | — | — |
 | Workspace | **Build MCP Server** | — (runs `npm install && npm run build`) | — | — |
+| Workspace | **Launch Web App** | — (runs `npm run dev`, opens `localhost:5173`) | — | — |
 
 ### How it works
 
@@ -583,6 +584,9 @@ These are also available from the Command Palette (and reusable in keybindings):
 - `PR Review Agent: Open MCP Config` — open `.vscode/mcp.json`.
 - `PR Review Agent: Open Agent Prompt` — open `orchestrator.agent.md`.
 - `PR Review Agent: Build MCP Server` — `npm install && npm run build` in `mcp-server/`.
+- `PR Review Agent: Launch Web App` — start the web dashboard's dev server (`npm run dev`
+  at the repo root, server :4000 + client :5173) in a reused **PR Review Web App** terminal
+  and open <http://localhost:5173> in the browser.
 - `PR Review Agent: Run MCP Tool in Chat` — the command behind the panel buttons.
 
 ## Web dashboard

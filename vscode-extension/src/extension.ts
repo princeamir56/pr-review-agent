@@ -57,6 +57,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("prReviewAgent.openMcpConfig", () => openWorkspaceFile(MCP_CONFIG, context)),
     vscode.commands.registerCommand("prReviewAgent.openAgentPrompt", () => openWorkspaceFile(AGENT_PROMPT, context)),
     vscode.commands.registerCommand("prReviewAgent.buildServer", () => buildServer(context)),
+    vscode.commands.registerCommand("prReviewAgent.launchWebApp", () => launchWebApp(context)),
     // Opening or closing a folder can change where pr-review-agent lives.
     vscode.workspace.onDidChangeWorkspaceFolders(() => {
       cachedAgentRoot = undefined;
@@ -327,6 +328,40 @@ async function buildServer(context?: vscode.ExtensionContext): Promise<void> {
   terminal.sendText("npm install && npm run build");
 }
 
+/** Terminal title reused across clicks so repeated launches don't stack dev servers. */
+const WEB_APP_TERMINAL = "PR Review Web App";
+/** Vite dev client — the URL a user actually browses (the API sits on :4000). */
+const WEB_APP_URL = "http://localhost:5173";
+/** Rough head start for `npm run dev` before we hand the URL to the browser. */
+const WEB_APP_BOOT_DELAY_MS = 4000;
+
+/**
+ * Starts the web dashboard's dev server from the agent root and opens the Vite client
+ * in the system browser. The root `dev` script is the repo-level entry point that runs
+ * `web/`'s `web:dev` (Express API on :4000 + Vite client on :5173, concurrently).
+ */
+async function launchWebApp(context?: vscode.ExtensionContext): Promise<void> {
+  const root = await requireAgentRoot(context);
+  if (!root) {
+    return;
+  }
+
+  const existing = vscode.window.terminals.find((t) => t.name === WEB_APP_TERMINAL);
+  const terminal =
+    existing ?? vscode.window.createTerminal({ name: WEB_APP_TERMINAL, cwd: root.fsPath });
+
+  terminal.show();
+  if (!existing) {
+    terminal.sendText("npm run dev");
+    // Best-effort: the dev server may still be compiling when the browser opens. The
+    // terminal is authoritative — startup logs and errors show up there, and a reload
+    // of the page picks the server up once it is listening.
+    await new Promise((resolve) => setTimeout(resolve, WEB_APP_BOOT_DELAY_MS));
+  }
+
+  await vscode.env.openExternal(vscode.Uri.parse(WEB_APP_URL));
+}
+
 function getDashboardHtml(webview: vscode.Webview): string {
   const nonce = getNonce();
 
@@ -451,6 +486,7 @@ function getDashboardHtml(webview: vscode.Webview): string {
     <button class="secondary" data-command="prReviewAgent.openAgentPrompt">Agent Prompt</button>
   </div>
   <button class="secondary" data-command="prReviewAgent.buildServer">Build MCP Server</button>
+  <button class="secondary" data-command="prReviewAgent.launchWebApp">Launch Web App</button>
 
   <div class="status">
     <p>Server entry: <code>pr-review-agent</code></p>

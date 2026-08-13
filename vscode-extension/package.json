@@ -61,6 +61,11 @@
         "icon": "$(tools)"
       },
       {
+        "command": "prReviewAgent.launchWebApp",
+        "title": "PR Review Agent: Launch Web App",
+        "icon": "$(globe)"
+      },
+      {
         "command": "prReviewAgent.runTool",
         "title": "PR Review Agent: Run MCP Tool in Chat"
       }
